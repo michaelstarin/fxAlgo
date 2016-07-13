@@ -1,24 +1,25 @@
 __author__ = 'michaelstarin'
 
 import time
-import numpy as np
-import httplib
-import urllib
-import json
-import threading
-import os
+from datetime import datetime
+from datetime import timedelta
 
-from Support_Resistance import SRZones
-from ReversalMinMax import Reversal
-from Restful import RestfulAPI
-from datetime import datetime, timedelta
-from pandas.io.json import json_normalize
+import httplib
+import json
 import matplotlib.pyplot as plt
+import numpy as np
+import os
+import threading
+import urllib
+from Restful import RestfulAPI
+from ReversalMinMax import Reversal
+from Support_Resistance import SRZones
+from pandas.io.json import json_normalize
 
 
 class RSS1:
-    def __init__(self,granularity,count,sleeptime,currency_pair,
-                oanda_account_id,oanda_access_token,domain,oanda,sensitivity_range,srzone_range):
+    def __init__(self, granularity, count, sleeptime, currency_pair,
+                 oanda_account_id, oanda_access_token, domain, oanda, sensitivity_range, srzone_range):
         self.granularity = granularity
         self.count = count
         self.sleeptime = sleeptime
@@ -34,26 +35,31 @@ class RSS1:
         self.domain = domain
         self.sensitivity_range = sensitivity_range
         self.srzone_range = srzone_range
+        self.minutes = 5
+        self.seconds = 60
         global close_ask_array
         global open_ask_array
 
-    def main_FX(self):
+    def main_fx(self):
         print 'Currency Pair is ', self.currency_pair
 
         while True:
             self.now = datetime.utcnow()
             self.now_min = self.now - timedelta(microseconds=self.now.microsecond)
 
-            if self.now_min.minute % 5 == 0 and self.now_min.second < 8 and self.now_min.second > 3:
-
+            # if self.now_min.minute % 5 == 0 and self.now_min.second < 8 and self.now_min.second > 3:
+            if True:
                 while True:
                     self.now = datetime.utcnow()
-                    self.now_rounded = self.now - timedelta(minutes=self.now.minute % 5, seconds=self.now.second % 60, microseconds=self.now.microsecond)
+                    self.now_rounded = self.now - timedelta(minutes=self.now.minute % self.minutes,
+                                                            seconds=self.now.second % self.seconds,
+                                                            microseconds=self.now.microsecond)
                     print ' The time is now rounded ', self.now_rounded
 
                     # fetch historical candlestick data
-                    instance2 = RestfulAPI(self.granularity,self.count,self.currency_pair,self.oanda_account_id,self.oanda_access_token,self.domain,self.now)
-                    self.array = instance2.get_restful_price_5min()
+                    instance2 = RestfulAPI(self.granularity, self.count, self.currency_pair, self.oanda_account_id,
+                                           self.oanda_access_token, self.domain, self.now)
+                    self.array = instance2.get_restful_price()
                     global close_ask_array
                     global open_ask_array
 
@@ -63,67 +69,48 @@ class RSS1:
                     print 'self.open_ask_array = np.array(self.array[self.price_type2][0:len(self.array)]) in Main', open_ask_array
 
                     # fetch array of support and resistance levels
-                    #instance3 = Reversal(close_ask_array,self.sensitivity_range)
-                    #locations = instance3.reversal_m_m()
-                    #instance4 = SRZones(locations,self.currency_pair,self.srzone_range)
-                    #SR1_AR = instance4.S_R()
+                    instance3 = Reversal(close_ask_array, self.sensitivity_range)
+                    locations = instance3.reversal_m_m()
+                    instance4 = SRZones(locations, self.currency_pair, self.srzone_range)
+                    sr1_ar = instance4.sup_rest()
                     condition = True
 
-                    if self.currency_pair == 'EUR_USD':
-                        SR1_AR = [1.1018,1.0876,1.0702,1.1616,1.1393,1.1194]
-                    if self.currency_pair == 'USD_JPY':
-                        SR1_AR = [101.44,101.30,98.77,103.86,103.41,102.63]
-                    if self.currency_pair == 'GBP_USD':
-                        SR1_AR = [1.2875,1.2750,1.2500,1.3500,1.3340,1.3200]
-                    if self.currency_pair == 'USD_CHF':
-                        SR1_AR = [0.9686,0.9551,0.9441,1.0031,0.9948,0.9847]
-                    if self.currency_pair == 'AUD_USD':
-                        SR1_AR = [0.7326,0.7145,0.7050,0.7835,0.7647,0.7545]
-                    if self.currency_pair == 'USD_CAD':
-                        SR1_AR = [1.2838,1.2887,1.2848,1.3052,1.3013,1.3006]
-                    if self.currency_pair == 'EUR_GBP':
-                        SR1_AR = [0.8390,0.8320,0.8206,0.8689,0.8596,0.8504]
-                    if self.currency_pair == 'EUR_JPY':
-                        SR1_AR = [112.00,110.00,108.08,118.60,115.37,113.65]
-                    if self.currency_pair == 'GBP_JPY':
-                        SR1_AR = [130.00,128.82,124.73,140.00,137.27,135.46]
-
-
-
-                    print 'SR1_AR ', SR1_AR
+                    print 'SR1_AR ', sr1_ar
                     print 'a[-1] is ', close_ask_array[-1]
                     print 'a[-2] is ', close_ask_array[-2]
                     print 'a[-3] is ', close_ask_array[-3]
 
-
-
-
                     # Parse through each S/R level
-                    for t in range(0, len(SR1_AR)):
+                    for t in range(0, len(sr1_ar)):
                         # Does price break through resistance level
-                        if (close_ask_array[-1] >= (SR1_AR[t] + .00001)) & (close_ask_array[-2] <= (SR1_AR[t] - .00001)):
+                        if (close_ask_array[-1] >= (sr1_ar[t] + .00001)) & (
+                                    close_ask_array[-2] <= (sr1_ar[t] - .00001)):
 
-                            print 'support line is ', SR1_AR[t]
+                            print 'support line is ', sr1_ar[t]
                             print 'breakthrough up'
                             condition = False
-                            inst1 = RSS1(self.granularity,self.count,self.sleeptime,self.currency_pair,self.oanda_account_id,
-                                        self.oanda_access_token,self.domain,self.oanda,self.sensitivity_range,self.srzone_range)
-                            #inst1.reversal_min(SR1_AR[t],close_ask_array)
-                            rss = threading.Thread(target=inst1.reversal_min, args=(SR1_AR[t], close_ask_array[-1]))
+                            inst1 = RSS1(self.granularity, self.count, self.sleeptime, self.currency_pair,
+                                         self.oanda_account_id,
+                                         self.oanda_access_token, self.domain, self.oanda, self.sensitivity_range,
+                                         self.srzone_range)
+
+                            rss = threading.Thread(target=inst1.reversal_min, args=(sr1_ar[t], close_ask_array[-1]))
                             rss.daemon = True
                             rss.start()
 
-
                         # Does price break through support level
-                        elif (close_ask_array[-1] <= (SR1_AR[t] - .00001)) & (close_ask_array[-2] >= (SR1_AR[t] + .00001)):
+                        elif (close_ask_array[-1] <= (sr1_ar[t] - .00001)) & (
+                                    close_ask_array[-2] >= (sr1_ar[t] + .00001)):
 
-                            print 'resistance line is ', SR1_AR[t]
+                            print 'resistance line is ', sr1_ar[t]
                             print 'breakthrough down'
                             condition = False
-                            inst2 = RSS1(self.granularity,self.count,self.sleeptime,self.currency_pair,self.oanda_account_id,
-                                       self.oanda_access_token,self.domain,self.oanda,self.sensitivity_range,self.srzone_range)
-                            #inst2.reversal_max(SR1_AR[t],close_ask_array)
-                            rss = threading.Thread(target=inst2.reversal_max, args=(SR1_AR[t], close_ask_array[-1]))
+                            inst2 = RSS1(self.granularity, self.count, self.sleeptime, self.currency_pair,
+                                         self.oanda_account_id,
+                                         self.oanda_access_token, self.domain, self.oanda, self.sensitivity_range,
+                                         self.srzone_range)
+
+                            rss = threading.Thread(target=inst2.reversal_max, args=(sr1_ar[t], close_ask_array[-1]))
                             rss.daemon = True
                             rss.start()
 
@@ -137,10 +124,10 @@ class RSS1:
                     if condition:
                         print 'no crossover'
 
-                    time.sleep(60)
+                    time.sleep(self.seconds)
                     break
             else:
-                time.sleep(4)
+                time.sleep(self.seconds / 15.0)
 
     def reversal_max(self, resistance_line, crossover_price):
 
@@ -178,9 +165,9 @@ class RSS1:
 
             # Check to see if most recent candle fails to close above resistance line
             if (latest_close_price <= (resistance_line + .0001)) & (
-                latest_close_price >= (resistance_line - .0003)) and (latest_open_price < latest_close_price) and (
-                    (resistance_line - pass_down) >= .0004):
-
+                        latest_close_price >= (resistance_line - .0003)) and (
+                        latest_open_price < latest_close_price) and (
+                        (resistance_line - pass_down) >= .0004):
 
                 time.sleep(self.sleeptime)
 
@@ -206,12 +193,15 @@ class RSS1:
 
                     fiveMin_streaming_time = 0
 
-                    short_price1 = self.oanda.create_order(6980117, instrument=self.currency_pair, units=13000, side='sell',
-                                                      type='market')
-                    short_price2 = self.oanda.create_order(6980117, instrument=self.currency_pair, units=13000, side='sell',
-                                                      type='market')
-                    short_price3 = self.oanda.create_order(6980117, instrument=self.currency_pair, units=13000, side='sell',
-                                                      type='market')
+                    short_price1 = self.oanda.create_order(6980117, instrument=self.currency_pair, units=13000,
+                                                           side='sell',
+                                                           type='market')
+                    short_price2 = self.oanda.create_order(6980117, instrument=self.currency_pair, units=13000,
+                                                           side='sell',
+                                                           type='market')
+                    short_price3 = self.oanda.create_order(6980117, instrument=self.currency_pair, units=13000,
+                                                           side='sell',
+                                                           type='market')
 
                     # Fetch trade position ID's
                     conn = httplib.HTTPSConnection("api-fxpractice.oanda.com")
@@ -237,14 +227,14 @@ class RSS1:
                     except OSError:
                         pass
 
-                    plt.axhline(y= resistance_line,color = 'red')
-                    plt.xlim([0,400])
+                    plt.axhline(y=resistance_line, color='red')
+                    plt.xlim([0, 400])
 
-                    plt.plot(close_ask_array[-400:], color = 'green')
+                    plt.plot(close_ask_array[-400:], color='green')
 
                     plt.savefig(pickleFileRoot)
 
-                    print 'SELL$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$'
+                    print 'SELL'
 
                     now = datetime.utcnow()
                     print ' The time is now rounded ', now
@@ -277,8 +267,8 @@ class RSS1:
                                 print 'buy back price ', buyBackprice
                                 condition_met = True
 
-                            if (buyBackprice - short_price2) >= .0005 and trade_id2_status == False and trade_id3_status == False:
-
+                            if (
+                                        buyBackprice - short_price2) >= .0005 and trade_id2_status == False and trade_id3_status == False:
                                 # close_order
                                 print 'trade_id2 ', trade_id2
                                 print 'trade_id3 ', trade_id3
@@ -300,8 +290,7 @@ class RSS1:
                             buyBackprice = prices[0].get("ask")
                             # Take the profit
                             if (short_price2 - buyBackprice) >= .0008 and trade_id1_status == False and \
-                                    trade_id2_status == False:
-
+                                            trade_id2_status == False:
                                 # close_order
                                 self.oanda.close_trade(6980117, trade_id1)
                                 self.oanda.close_trade(6980117, trade_id2)
@@ -334,9 +323,8 @@ class RSS1:
             time.sleep(300)
 
         return
-    ######################################################################
 
-    def reversal_min(self,support_line,crossover_price):
+    def reversal_min(self, support_line, crossover_price):
 
         scope = 1
         condition = False
@@ -355,7 +343,7 @@ class RSS1:
             b = open_ask_array[-scope:]
             print 'a = self.close_ask_array[-scope:] in reversal Min ', a
             print 'b = self.open_ask_array[-scope:] in reversal Min ', b
-            scope+=1
+            scope += 1
 
             # Last close price for candlestick in array
             latest_close_price = a[-1]
@@ -363,12 +351,12 @@ class RSS1:
             latest_open_price = b[-1]
 
             if latest_close_price <= support_line - .0001:
-                print 'got out of loop because close_price is ',latest_close_price
+                print 'got out of loop because close_price is ', latest_close_price
                 print ' '
                 break
 
             pass_up = max(a)
-            print 'pass_up is ',pass_up
+            print 'pass_up is ', pass_up
 
             if (latest_close_price <= (support_line + .0001)) & (latest_close_price >= (support_line - .0003)) and \
                     (latest_open_price > latest_close_price) and ((pass_up - support_line) >= .0004):
@@ -392,17 +380,19 @@ class RSS1:
                 if spread > .0003:
                     break
 
-
                 if (next_close > next_open) and (next_open > support_line) and (next_close - next_open <= .0004):
 
                     fiveMin_streaming_time = 0
 
-                    long_price1 = self.oanda.create_order(6980117, instrument=self.currency_pair, units=13000, side='buy',
-                                                     type='market')
-                    long_price2 = self.oanda.create_order(6980117, instrument=self.currency_pair, units=13000, side='buy',
-                                                     type='market')
-                    long_price3 = self.oanda.create_order(6980117, instrument=self.currency_pair, units=13000, side='buy',
-                                                     type='market')
+                    long_price1 = self.oanda.create_order(6980117, instrument=self.currency_pair, units=13000,
+                                                          side='buy',
+                                                          type='market')
+                    long_price2 = self.oanda.create_order(6980117, instrument=self.currency_pair, units=13000,
+                                                          side='buy',
+                                                          type='market')
+                    long_price3 = self.oanda.create_order(6980117, instrument=self.currency_pair, units=13000,
+                                                          side='buy',
+                                                          type='market')
 
                     conn = httplib.HTTPSConnection("api-fxpractice.oanda.com")
                     params = urllib.urlencode({"instrument": self.currency_pair, })
@@ -427,14 +417,13 @@ class RSS1:
                     except OSError:
                         pass
 
-                    plt.axhline(y= support_line,color = 'red')
-                    plt.xlim([0,400])
+                    plt.axhline(y=support_line, color='red')
+                    plt.xlim([0, 400])
 
-                    plt.plot(close_ask_array[-400:], color = 'green')
+                    plt.plot(close_ask_array[-400:], color='green')
 
                     plt.savefig(pickleFileRoot)
-                    print 'BUY$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$'
-
+                    print 'BUY'
 
                     now = datetime.utcnow()
                     print ' The time is now rounded ', now
@@ -455,7 +444,7 @@ class RSS1:
                             response = self.oanda.get_prices(instruments=self.currency_pair)
                             prices = response.get("prices")
                             long_price2 = long_price1[u'price']
-                            buyBackprice = prices[0].get("bid") # If buyback price is undesirable than cut losses
+                            buyBackprice = prices[0].get("bid")  # If buyback price is undesirable than cut losses
                             # Cut losses
 
                             if (long_price2 - buyBackprice) >= .0005 and trade_id1_status == False:
@@ -467,7 +456,8 @@ class RSS1:
                                 print 'buy back price ', buyBackprice
                                 condition_met = True
 
-                            if (long_price2 - buyBackprice) >= .0005 and trade_id2_status == False and trade_id3_status == False:
+                            if (
+                                        long_price2 - buyBackprice) >= .0005 and trade_id2_status == False and trade_id3_status == False:
                                 # close_order
                                 print 'trade_id2 ', trade_id2
                                 print 'trade_id3 ', trade_id3
@@ -488,7 +478,8 @@ class RSS1:
                             long_price2 = long_price1[u'price']
                             buyBackprice = prices[0].get("bid")
                             # Take the profit
-                            if (buyBackprice - long_price2) >= .0008 and trade_id1_status == False and trade_id2_status == False:
+                            if (
+                                buyBackprice - long_price2) >= .0008 and trade_id1_status == False and trade_id2_status == False:
                                 # close_order
                                 self.oanda.close_trade(6980117, trade_id1)
                                 self.oanda.close_trade(6980117, trade_id2)
