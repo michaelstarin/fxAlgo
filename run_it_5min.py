@@ -4,8 +4,8 @@ import oandapy
 import threading
 from LiveTrade import RSS1
 
-oanda_account_id = 6980117
-oanda_access_token = "74b91ee3fda0251126b3d4a319067b88-7a70489e0dd38f5e6994ddda09b0e1ca"
+oanda_account_id = "ACCOUNT_ID"
+oanda_access_token = "ACCOUNT_ACCESS-TOKEN"
 
 currency_pair = 'AUD_USD'
 
